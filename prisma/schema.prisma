@@ -1,0 +1,187 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+model Utilisateur {
+  id           Int      @id @default(autoincrement())
+  nom          String
+  email        String @unique
+  mot_de_passe String
+  role         String
+  contact      String
+  resetToken  String?   // Token pour la réinitialisation du mot de passe
+
+  // Messages envoyés par cet utilisateur
+  messagesEnvoyes Message[] @relation("messagesEnvoyes")
+  
+  // Messages reçus par cet utilisateur
+  messagesRecus Message[]  @relation("messagesRecus")
+  commentaire Commentaire[]
+  reservation Reservation[]
+  payement  Payement[]
+}
+
+model Message {
+  id             Int @id @default(autoincrement())
+  dateEnvoie     DateTime
+  contenuMessage String
+  expediteurId   Int?
+  destinataireId Int?
+
+  expediteur     Utilisateur? @relation("messagesEnvoyes", fields: [expediteurId], references: [id], onDelete: Cascade)
+  destinataire   Utilisateur? @relation("messagesRecus", fields: [destinataireId], references: [id], onDelete: Cascade)
+}
+
+
+model Offre {
+  id              Int @id @default(autoincrement())
+  titreOffre      String 
+  prixParPers     Float
+  dateDepart      DateTime
+  dateRetour      DateTime
+  descriptionOffre String
+  duree            Int
+  placeDisponible  Int
+  imagePrincipale  Bytes?   // ici l'image sera stockée directement
+  visiteId      Int?
+  voitureId     Int?
+
+  visite       Visite? @relation(fields: [visiteId], references: [id], onDelete: Cascade)
+  voiture      Voiture? @relation(fields: [voitureId], references: [id], onDelete: Cascade)
+  commentaire  Commentaire[]
+  
+  reservation Reservation[]
+
+}
+
+model Visite {
+  id Int @id @default(autoincrement())
+  ville String
+  dateVisite DateTime
+  ordreVisite Int
+  activiteId Int?
+  hebergementId Int?
+  activite Activite? @relation(fields: [activiteId], references: [id],  onDelete: Cascade )
+  hebergement Hebergement? @relation(fields: [hebergementId], references: [id], onDelete: Cascade )
+  offre Offre[]
+
+  
+}
+
+model Activite {
+  id Int @id @default(autoincrement())
+  descriptionActivite String?
+  dateActivite DateTime
+  lieuActivite String
+
+  visite Visite[]
+  
+}
+
+model Voiture {
+  id Int @id @default(autoincrement())
+  immatriculation String
+  marque String
+  modele String
+  coutParJours Float
+  nombreJours Int?
+  capacite Int
+  offre Offre[]
+
+}
+
+
+model Commentaire {
+  id Int @id @default(autoincrement())
+  dateCommentaire DateTime
+  contenuCommentaire String
+  notes Float
+  utilisateurId Int
+  offreId Int?
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  offre Offre? @relation(fields: [offreId], references: [id], onDelete: Cascade)
+}
+
+model Hebergement {
+  id Int @id @default(autoincrement())
+  nom String
+  adresse String
+  etoile Int
+  fraisParNuit Float
+  nombreNuit Int?
+
+  visite Visite[]
+}
+
+model Reservation {
+  id Int @id @default(autoincrement())
+  nombrePers Int
+  dateReservation DateTime
+  prixParPersonne Float?
+  statut StatusReservation @default(EN_ATTENTE) // Utilisation de l'enum
+  dateExpiration DateTime // Ajout d'un champ pour l'expiration
+  utilisateurId Int
+  offreId Int
+  payement Payement[]
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id],onDelete: Cascade)
+  offre Offre @relation(fields: [offreId], references: [id], onDelete: Cascade)
+}
+
+model Payement {
+  id Int @id @default(autoincrement())
+  montant Float
+  date DateTime
+  modePayement String?
+  status StatusPaiement @default(EN_ATTENTE) // Utilisation de l'enum
+  description String
+  utilisateurId Int
+  reservationId Int?
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  reservation Reservation? @relation(fields: [reservationId], references: [id])
+
+    // Lien Stripe
+  stripePaymentIntentId String? @unique
+}
+
+// Enums
+enum Role {
+  ADMIN
+  CLIENT
+}
+
+enum StatusReservation {
+  EN_ATTENTE
+  CONFIRMEE
+  ANNULEE
+  
+}
+
+enum ModePayement {
+  CARTE_CREDIT
+
+}
+
+
+
+enum StatusPaiement {
+  EN_ATTENTE
+  SUCCES
+  ECHOUE
+  REMBOURSE
+}
