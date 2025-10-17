@@ -1,6 +1,14 @@
 const prisma = require("../utils/prisma");
 const { updatePlacesDisponibles } = require("./offreService");
 
+const StatusReservation = {
+  EN_ATTENTE: "EN_ATTENTE",
+  CONFIRMEE: "CONFIRMEE",
+  ANNULEE: "ANNULEE",
+  EXPIREE: "EXPIREE"
+};
+
+
 async function getAllReservation() {
   try {
     return await prisma.reservation.findMany({
@@ -84,39 +92,27 @@ async function createReservation(reservationData) {
 async function traiterExpiration() {
   try {
     const now = new Date();
+    console.log("⏰ Vérification des réservations expirées à", now);
 
-    const reservationsExpirees = await prisma.reservation.findMany({
+    const result = await prisma.reservation.updateMany({
       where: {
-        statut: "EN_ATTENTE",
-        dateExpiration: { lte: now }
+        statut: StatusReservation.EN_ATTENTE,
+        dateExpiration: { lt: now },
       },
-      include: { utilisateur: true, offre: true }
+      data: {
+        statut: StatusReservation.ANNULEE
+      },
     });
 
-    if (reservationsExpirees.length > 0) {
-      console.log(`Traitement de ${reservationsExpirees.length} réservation(s) expirée(s)`);
+    console.log("➡️ Résultat updateMany:", result);
 
-      const result = await prisma.reservation.updateMany({
-        where: {
-          statut: "EN_ATTENTE",
-          dateExpiration: { lte: now }
-        },
-        data: {
-          statut: "ANNULEE",
-          raisonAnnulation: "Réservation expirée (non payée dans les 24h)"
-        }
-      });
-
-      
-      console.log(`${result.count} réservation(s) expirée(s) ont été annulées`);
-    }
-
-    return reservationsExpirees.length;
+    return result.count;
   } catch (error) {
-    console.error("Erreur lors du traitement des expirations :", error);
+    console.error("Erreur dans traiterExpiration:", error);
     throw error;
   }
 }
+
 
 async function confirmerPaiement(id) {
   try {
@@ -134,8 +130,7 @@ async function confirmerPaiement(id) {
         await prisma.reservation.update({
           where: { id: parseInt(id) },
           data: {
-            statut: "ANNULEE",
-            raisonAnnulation: "Paiement tenté après expiration"
+            statut: "ANNULEE"
           }
         });
         throw new Error("Impossible de confirmer : la réservation a expiré");

@@ -13,7 +13,7 @@ class MotService {
     if (!user) throw new Error("Utilisateur introuvable");
 
     const token = jwt.sign({ id: user.id }, SECRET, { expiresIn: "1h" });
-    const resetLink = `http://localhost:5173/reset-password/${token}`;
+    const resetLink = `http://localhost:5174/reset-password/${token}`;
 
     await transporter.sendMail({
       from:`"TsikiDia Tour" <${process.env.EMAIL_USER}>`, 

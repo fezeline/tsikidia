@@ -14,6 +14,7 @@ const payementRoute = require("./Route/payementRoute");
 const authRoute = require("./Route/authRoute");
 const motRoute = require("./Route/motRoute");
 const { stripeWebhookController } = require("./Controller/payementController"); // ✅ Import webhook
+const { traiterExpiration } = require('./Service/reservationService');
 
 
 
@@ -26,7 +27,7 @@ app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ limit: "100mb", extended: true }));
 
 app.use(cors({
-  origin: "http://localhost:5173", // adresse de ton frontend React
+  origin: "http://localhost:5174", // adresse de ton frontend React
   credentials: true
 }));
 
@@ -50,6 +51,16 @@ app.use("/api/mot", motRoute)
 app.get("/api/protected", verifyToken, (req, res) => {
   res.json({ message: "Accès autorisé", user: req.user });
 });
+
+setInterval(async () => {
+  try {
+    const nb = await traiterExpiration();
+    if (nb > 0) console.log(`${nb} réservation(s) expirée(s) annulée(s) automatiquement`);
+  } catch (err) {
+    console.error("Erreur dans le traitement automatique des expirations :", err);
+  }
+}, 5 * 60 * 1000);
+
 
 app.get("/", (req,res)=>{
     res.send("salut les gars")
